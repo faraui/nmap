@@ -1,5 +1,59 @@
 #Nmap Changelog ($Id$); -*-text-*-
 
+o Fixed an issue in FTP bounce scan where a single null byte is written past
+  the end of the receive buffer. The issue is triggered by a malicious server
+  but does not cause a crash with default builds. [Tyler Zars]
+
+o [GH#3130] Fix a crash (stack exhaustion due to excessive recursion) in the
+  parallel DNS resolver. Additionally, improved performance by processing
+  responses that come after the request has timed out. [Daniel Miller]
+
+o [GH#2757] Fix a crash in traceroute when using randomly-generated decoys:
+  "Assertion `source->ss_family == AF_INET' failed" [Daniel Miller]
+
+o [GH#2899] When IP protocol scanning on IPv6 (-sO -6), skip protocol numbers
+  that are registered as Extension Header values. When the --data option was
+  used, these would fail the assertion "len == (u32) ntohs(ip6->ip6_plen)"
+  [Daniel Miller]
+
+o [NSE][GH#3133] Fix the error "nse_nsock.cc:637: void receive_callback(nsock_pool, nsock_event, void*): Assertion `lua_status(L) == 1' failed."
+  when reading from an SSL connection. [Daniel Miller]
+
+o [GH#3086] Prevent TCP Connect scan (-sT) from leaking one socket per
+  hostgroup, which led to progressively slower scans and assertion failures in
+  other scan phases. [Daniel Miller]
+
+o [NSE] Added NSE bindings for more libssh2 functions: channel_request,
+  channel_request_pty_ex, channel_shell, and userauth_keyboard_interactive.
+  ssh-brute will now use keyboard-interactive auth if password auth is not
+  offered. [Daniel Miller, CrowdStrike]
+
+o Fix a bug that was causing Nmap to send empty DNS packets for each target
+  that was not found up instead of just skipping them for reverse DNS.
+
+o [macOS][GH#3127] Fix "dnet: Failed to open device en0" errors on macOS since
+  Nmap 7.96. [Daniel Miller]
+
+o [NSE] Fix/update/enhance tls.lua for newer TLSv1.3 ciphers, including
+  post-quantum ciphersuites.
+
+o [GH#3114][Windows] Use only the DNS servers for up and configured interfaces
+  for forward and reverse DNS lookups. When -e or -S are used, use only DNS
+  servers that can be connected via that interface or source address. [Daniel Miller]
+
+o [Ndiff][GH#3115] Have configure script check for PyPA 'build' module. [Daniel Miller]
+
+o [Zenmap] Updated Spanish and Chinese language strings for Zenmap to cover latest strings.
+
+o [Zenmap][GH#2718] Zenmap language translation (i18n) files were not being
+  installed. [Daniel Miller]
+
+o [Zenmap][GH#3066] Fix Zenmap error "ValueError: I/O operation on closed file"
+  when Nmap crashes or fails. [Daniel Miller]
+
+o [Zenmap][GH#3084][GH#3127] Fix UnicodeDecodeError issues in ScriptMetadata
+  and UmitConfigParser. [Daniel Miller]
+
 o [NSE][GH#3123] WS-Discovery parsing would error out if the MessageID UUID
   was not prefixed with "urn:". [nnposter]
 
@@ -19,7 +73,7 @@ o [GH#3088] Mitigate a false-positive detection by replacing a malicious URL in
 Nmap 7.96 [2025-05-01]
 
 o Upgraded included libraries: OpenSSL 3.0.16, Lua 5.4.7, libssh2 1.11.1,
-  libpcap 1.10.5, libpcre2 10.45
+  libpcap 1.10.5, libpcre2 10.45, libdnet 1.18.0
 
 o [Windows] Upgraded the included version of Npcap from version 1.79 to the
   latest version 1.82, bringing faster packet injection, VLAN header capture,
@@ -319,7 +373,7 @@ o [Ncat] Addressed an issue from the Debian bug tracker
   correctly used in the ProxyCommand option of OpenSSH.
 
 o Improved DNS domain name parsing to avoid recursion and enforce name length
-  limits, avoiding a theoretical stack overflow issue with certain crafted DNS
+  limits, avoiding a theoretical stack exhaustion issue with certain crafted DNS
   server responses, reported by Philippe Antoine.
 
 o [GH#2338][NSE] Fix mpint packing in ssh2 library, which was causing OpenSSH
