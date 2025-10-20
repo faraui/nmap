@@ -1019,7 +1019,20 @@ netutil_eth_t *netutil_eth_open(const char *device) {
   } while (0);
 #else
   eth_handle(e) = eth_open(device);
-  e->datalink = DLT_EN10MB;
+  if (eth_handle(e)) {
+    eth_addr_t ea;
+    /* No guarantees this is Ethernet. Dnet doesn't offer a way to check the L2
+     * protocol, so we'll try to get the Ethernet address to confirm.
+     */
+    if (0 == eth_get(eth_handle(e), &ea) && 0 != memcmp(&ea, "\0\0\0\0\0\0", 6)) {
+      e->datalink = DLT_EN10MB;
+    }
+    else {
+      // Not a data link we know about.
+      eth_handle_close(eth_handle(e));
+      eth_handle(e) = NULL;
+    }
+  }
 #endif
 
   if (eth_handle(e) == NULL) {
@@ -1120,18 +1133,29 @@ int netutil_raw_socket(const char *device) {
     netutil_perror("setsockopt(SO_BROADCAST) failed");
   }
   sethdrinclude(rawsd);
-  socket_bindtodevice(rawsd, device);
+  if (device) {
+    socket_bindtodevice(rawsd, device);
+  }
 
   return rawsd;
 #endif
 }
 
-int raw_socket_or_eth(int sendpref, const char *ifname,
+int raw_socket_or_eth(int sendpref, const char *ifname, devtype iftype,
     int *rawsd, netutil_eth_t **ethsd) {
   assert(rawsd != NULL);
   *rawsd = -1;
   assert(ethsd != NULL);
   *ethsd = NULL;
+
+#ifndef WIN32
+  /* In general, on Windows we need to use Ether headers.
+   * On other platforms, avoid it. */
+  if (iftype != devt_ethernet) {
+    sendpref = PACKET_SEND_IP;
+  }
+#endif
+
   bool may_try_eth = ifname && !(sendpref & PACKET_SEND_IP_STRONG);
   bool may_try_ip = !(sendpref & PACKET_SEND_ETH_STRONG);
   bool try_eth = may_try_eth && (sendpref & PACKET_SEND_ETH);
@@ -3289,7 +3313,7 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
   len -= NLMSG_LENGTH(sizeof(*nlmsg));
 
   /* See rtnetlink(7). Anything matching this route is actually unroutable. */
-  if (rtmsg->rtm_type == RTN_UNREACHABLE || rtmsg->rtm_type == RTN_UNSPEC
+  if (rtmsg->rtm_type == RTN_UNREACHABLE
     || rtmsg->rtm_type == RTN_BLACKHOLE || rtmsg->rtm_type == RTN_PROHIBIT)
     return 0;
 
@@ -3329,6 +3353,11 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
 
   if (ii != NULL) {
     rnfo->ii = *ii;
+    if (rnfo->srcaddr.ss_family == AF_UNSPEC) {
+      assert(!spoofss);
+      assert(rnfo->ii.addr.ss_family == dst->ss_family);
+      rnfo->srcaddr = rnfo->ii.addr;
+    }
     return 1;
   } else {
     return 0;

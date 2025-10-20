@@ -858,7 +858,10 @@ local decode_body = function (body, encodings, maxlen)
   local undecoded = tableaux.tcopy(encodings)
   while #undecoded > 0 do
     local enc = undecoded[1]:lower()
-    if enc == "identity" then
+    if enc == "" then
+      -- do nothing (empty encoding placeholder)
+      table.remove(undecoded, 1)
+    elseif enc == "identity" then
       -- do nothing
       table.insert(decoded, table.remove(undecoded, 1))
     elseif enc == "gzip" and have_zlib then
@@ -2025,11 +2028,11 @@ function pipeline_go(host, port, all_requests)
     if connsent >= connlimit or resp.truncated or not socket:get_info() then
       socket:close()
       stdnse.debug3("HTTP pipeline: reconnecting")
+      socket:set_timeout(pipeline_comm_opts.request_timeout)
       socket:connect(host, port, bopt)
       if not socket then
         return nil
       end
-      socket:set_timeout(pipeline_comm_opts.request_timeout)
       partial = ""
       connsent = 0
     end

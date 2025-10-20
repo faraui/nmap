@@ -956,7 +956,8 @@ void UltraScanInfo::Init(std::vector<Target *> &Targets, const struct scan_lists
       assert(!(sendpref & PACKET_SEND_IP_STRONG));
       sendpref = PACKET_SEND_ETH;
     }
-    if (!raw_socket_or_eth(sendpref, Targets[0]->deviceName(), &rawsd, &ethsd)) {
+    if (!raw_socket_or_eth(sendpref, Targets[0]->deviceName(), Targets[0]->ifType(),
+          &rawsd, &ethsd)) {
       fatal("Couldn't open a raw socket or eth handle.");
     }
     /* Raw scan types also need to know the source IP. */
